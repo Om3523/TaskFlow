@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Kanban Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: white; font-family: system-ui, sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+        .task-card { cursor: grab; transition: transform 0.2s; }
+        .task-card:active { cursor: grabbing; transform: scale(0.98); }
+    </style>
+</head>
+<body class="min-h-screen p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">TaskFlow</h1>
+            <button onclick="clearBoard()" class="text-red-400 hover:text-red-300 text-sm">Clear Board</button>
+        </header>
+
+        <!-- Add Task Form -->
+        <form id="task-form" class="glass p-4 rounded-xl mb-8 flex gap-4">
+            <input type="text" id="task-input" placeholder="What needs to be done?" required class="flex-1 bg-transparent border-b border-white/20 px-2 py-1 outline-none focus:border-blue-400 text-white">
+            <button type="submit" class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded-lg font-semibold transition">Add Task</button>
+        </form>
+
+        <!-- Kanban Board -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- To Do Column -->
+            <div class="glass p-4 rounded-xl min-h-[400px]" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <h2 class="font-bold text-gray-400 mb-4 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-gray-400"></span> To Do</h2>
+                <div id="todo-list" class="space-y-3"></div>
+            </div>
+
+            <!-- In Progress Column -->
+            <div class="glass p-4 rounded-xl min-h-[400px]" id="progress" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <h2 class="font-bold text-blue-400 mb-4 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-400"></span> In Progress</h2>
+                <div id="progress-list" class="space-y-3"></div>
+            </div>
+
+            <!-- Done Column -->
+            <div class="glass p-4 rounded-xl min-h-[400px]" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <h2 class="font-bold text-emerald-400 mb-4 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-400"></span> Done</h2>
+                <div id="done-list" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('taskflow_data')) || [
+            { id: '1', text: 'Build a cool HTML app', status: 'done' },
+            { id: '2', text: 'Learn about APIs', status: 'progress' }
+        ];
+
+        function saveData() { localStorage.setItem('taskflow_data', JSON.stringify(tasks)); }
+
+        function renderTasks() {
+            document.getElementById('todo-list').innerHTML = '';
+            document.getElementById('progress-list').innerHTML = '';
+            document.getElementById('done-list').innerHTML = '';
+
+            tasks.forEach(task => {
+                const el = document.createElement('div');
+                el.className = 'task-card bg-white/10 p-3 rounded-lg border border-white/5 text-sm flex justify-between items-center';
+                el.draggable = true;
+                el.id = 'task-' + task.id;
+                el.ondragstart = drag;
+                el.innerHTML = `
+                    <span>${task.text}</span>
+                    <button onclick="deleteTask('${task.id}')" class="text-gray-500 hover:text-red-400">&times;</button>
+                `;
+                document.getElementById(`${task.status}-list`).appendChild(el);
+            });
+        }
+
+        document.getElementById('task-form').onsubmit = (e) => {
+            e.preventDefault();
+            const input = document.getElementById('task-input');
+            tasks.push({ id: Date.now().toString(), text: input.value, status: 'todo' });
+            input.value = '';
+            saveData(); renderTasks();
+        };
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveData(); renderTasks();
+        }
+
+        function clearBoard() {
+            if(confirm('Delete all tasks?')) { tasks = []; saveData(); renderTasks(); }
+        }
+
+        // Drag and Drop Logic
+        function allowDrop(ev) { ev.preventDefault(); }
+        function drag(ev) { ev.dataTransfer.setData("text", ev.target.id); }
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const taskId = data.replace('task-', '');
+            // Find the closest column dropzone
+            const column = ev.target.closest('.glass').id; 
+            if(['todo', 'progress', 'done'].includes(column)) {
+                tasks.find(t => t.id === taskId).status = column;
+                saveData(); renderTasks();
+            }
+        }
+
+        renderTasks();
+    </script>
+</body>
+</html>
